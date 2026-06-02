@@ -7,25 +7,47 @@
 //
 
 // ModbusAddr contains all info required to connect to a modbus point
-// Only supports Modicon format. Raw PDU addresses are not supported.
-// Fields:
-// - **addr**: Modbus address (0=Coil, 1=Discrete Input, 3=Input Register, 4=Holding Register). Must follow `0xxxx`-'4xxxx' pattern.
-// - **encoding**: Data format for interpretation.
-// - **bitIndex**: (0-15) Optional bit position within a register.
-// - **access**: `"r"` (default) or `"rw"` (Read/Write).
-// - **scale**: Multiplier for raw values (default 1).
-// - **offset**: Optional offset value applied after scaling.
-// - **byteOrder**: Optional, defines endianness for multi-register values.
+// Only supports Modicon (1-based) addressing format. Raw 0-based PDU addresses are not supported.
 //
-// Example: `{ "addr": "40001", "encoding": "u2", "scale": 10, "access": "rw" }`
+// Fields:
+// - **addr**: Modicon address string. Leading digit selects the type/function;
+//   the remaining 4-5 digits are the 1-based register number:
+//     0xxxx  Coil
+//     1xxxx  Discrete Input
+//     3xxxx  Input Register
+//     4xxxx  Holding Register
+// - **encoding**: Data format for interpretation.
+// - **bitIndex**: (0-15) Optional bit position within a register. Only meaningful when encoding is bit.
+// - **access**: "r" (default), "rw" (Read/Write), or "w" (Write Only).
+// - **scale**: Optional ordered list of scale operations applied to the raw value.
+// - **byteOrder**: Optional, defines endianness for multi-register values. Defaults to network byte order when omitted.
+//
+// Example: { "addr": "40001", "encoding": "u2", "access": "rw", "scale": [{"op":"/", "factor":10}] }
 ModbusAddr: ProtocolAddr {
-  addr:  Str <pattern:"[0134]\\d{4,5}">   // Must follow Modicon addressing rules. Valid register values are as follows: 00001-065536, 10001-165536, 30001-365536, 40001-465536.
+  addr:  Str <pattern:"[0134]\\d{4,5}">   // Must follow Modicon addressing rules. Valid addr values are as follows: 00001-065536, 10001-165536, 30001-365536, 40001-465536.
   encoding: ModbusEncoding                // Specifies data representation format
-  bitIndex: Int? <minVal:0, maxVal:15>    // Optional bit index within a register
+  bitIndex: Int? <minVal:0, maxVal:15>    // Optional bit index within a register. Only used when encoding is bit.
   access: ModbusAccess "r"                // Read/write access
-  scale: Number "1"                       // Scaling factor for raw values
-  offset: Number?                         // Optional offset applied after scaling
-  byteOrder: ModbusByteOrder?             // Defines byte ordering for multi-register values
+  scale: List<of:ModbusScaleOp>?          // Ordered list of operations applied sequentially, left-to-right, with NO operator precedence.
+                                          // e.g. [{op:"+", factor:32768}, {op:"/", factor:10}] means (raw + 32768) / 10. Writable points invert by reversing the list
+                                          // and swapping + <-> - and * <-> /.
+  byteOrder: ModbusByteOrder?             // Defines endianness for multi-register values. Defaults to network byte order when omitted.
+}
+
+// A single scale operation: apply factor to the running value using op.
+// Operations are applied in list order with no precedence.
+ModbusScaleOp: Dict {
+  op:     ModbusScaleOpType   // +, -, *, or /
+  factor: Number              // numeric constant operand
+}
+
+// Scale operation types. Programmatic names are identifier-legal (add/sub/mul/div),
+// but keys are the symbols '+','-','*','/'.
+ModbusScaleOpType: Enum {
+  add <key:"+">  // running value + factor   (inverse: -)
+  sub <key:"-">  // running value - factor   (inverse: +)
+  mul <key:"*">  // running value * factor   (inverse: /)
+  div <key:"/">  // running value / factor   (inverse: *)
 }
 
 // ModbusAccess specifies read/write access for a modbus point
