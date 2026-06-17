@@ -4,42 +4,35 @@
 //
 // History:
 //   5 Feb 2025 James Gessel Creation
-//   11 Jun 2026 Will Stephens Revised: Updated to 6-digit extended Modicon addressing, changed scale to string, and updated documentation
+//   17 Jun 2026 Will Stephens Revised: Updated to 6-digit extended Modicon addressing, changed scale to string, and updated documentation
 
 // ModbusAddr contains all info required to connect to a modbus point.
 // Only supports 6-digit extended Modicon format (no hex or decimal).
 //
-// Fields:
-//
-// - **addr**: 6-digit extended Modicon address. Leading digit selects the
-//   type/function; the remaining 4-5 digits are the 1-based register number:
-//
-//   ```
-//   0xxxxx  Coil              000001-065536
-//   1xxxxx  Discrete Input    100001-165536
-//   3xxxxx  Input Register    300001-365536
-//   4xxxxx  Holding Register  400001-465536
-//   ```
-//
-// - **encoding**: Data format for interpretation.
-// - **bitIndex**: (0-15) Optional bit position within a register.
-// - **access**: `"r"` (default), `"rw"` (Read/Write), or `"w"` (Write Only).
-// - **scale**: Optional ordered op chain applied to the raw value, evaluated
-//   left-to-right with NO operator precedence. Format is `"[op] [number]"`
-//   with op choices (`+ - * /`). Examples: `"*10"`, `"/1000"`, `"+1.5"`,
-//   `"+32768 /10"`. `"+32768 /10"` means (raw + 32768) / 10.
-// - **byteOrder**: Optional, defines endianness for multi-register values.
-// - **dis**: Optional but preferred vendor human-readable point name.
-//
 // Example: `{ "addr": "400001", "encoding": "u2", "scale": "+32768 /10", "access": "rw" , "dis": "Run Cmd"}`
 ModbusAddr: ProtocolAddr {
-  addr: Str <pattern: "[0134]\\d{5}">     // Must follow 6-digit extended Modicon format. Valid register values are as follows: 000001-065536, 100001-165536, 300001-365536, 400001-465536.
-  encoding: ModbusEncoding                // Specifies data representation format
-  bitIndex: Int? <minVal: 0, maxVal: 15>  // Optional bit index within a register
-  access: ModbusAccess "r"                // "r" (default), "rw", or "w"
-  scale: Str?                             // Optional ordered op chain, evaluated left-to-right with NO operator precedence. Examples: "*10", "/1000", "+1.5", "+32768 /10".
-  byteOrder: ModbusByteOrder?             // Defines byte ordering for multi-register values
-  dis: Str?                               // Optional but preferred vendor human-readable point name
+  // Must follow 6-digit extended Modicon address format. Leading digit selects the
+  // type/function; the remaining 4-5 digits are the 1-based register number.
+  // Only the following register values are allowed:
+  // ```
+  // 0xxxxx  Coil              000001-065536
+  // 1xxxxx  Discrete Input    100001-165536
+  // 3xxxxx  Input Register    300001-365536
+  // 4xxxxx  Holding Register  400001-465536
+  // ```
+  addr: Str <pattern: "[0134]\\d{5}">
+  // Specifies data representation format
+  encoding: ModbusEncoding
+  // Optional bit index within a register
+  bitIndex: Int? <minVal: 0, maxVal: 15>
+  // `"r"` (default), `"rw"` (Read/Write), or `"w"` (Write Only)
+  access: ModbusAccess "r"
+  // Optional ordered op chain applied to the raw value.
+  scale: ModbusScaleExpr?
+  // Optional - defines byte ordering and endianness
+  byteOrder: ModbusByteOrder?
+  // Optional but preferred vendor human-readable point name
+  dis: Str?
 }
 
 // ModbusAccess specifies read/write access for a modbus point
@@ -63,10 +56,19 @@ ModbusEncoding: Enum {
   f8  // 64-bit Float
 }
 
-// Specifies byte and word order for a modbus point
+// Specifies endianness, byte, and word order for multi-register values
 ModbusByteOrder: Enum {
   be  // Big endian or network byte order
   le  // Little endian both byte and word order
   leb // Little endian byte order
   lew // Little endian word order
 }
+
+// Optional ordered op chain applied to the raw value, evaluated
+// left-to-right with NO operator precedence. Format is `"[op] [number]"`
+// with op choices (`+ - * /`).
+//
+// Examples: `"*10"`, `"/1000"`, `"+1.5"`, `"+32768 /10"`.
+//
+// `"+32768 /10"` means (raw + 32768) / 10.
+ModbusScaleExpr: Scalar
