@@ -4,7 +4,7 @@
 //
 // History:
 //   5 Feb 2025 James Gessel Creation
-//   18 Jun 2026 Will Stephens Revised: Updated to 6-digit extended Modicon addressing, changed scale to string, and updated documentation
+//   22 Jun 2026 Will Stephens Revised: Updated to 6-digit extended Modicon addressing, changed scale to string, and updated documentation
 
 // ModbusAddr contains all info required to connect to a modbus point.
 // Only supports 6-digit extended Modicon format (no hex or decimal).
@@ -79,4 +79,15 @@ ModbusByteOrder: Enum {
 // Examples: `"*10"`, `"/1000"`, `"+1.5"`, `"+32768 /10"`.
 //
 // `"+32768 /10"` means (raw + 32768) / 10.
+//
+// The formal grammar is defined below:
+// ```
+// <expr>   := <term> (" " <term>)*
+// <term>   := <op> <number>
+// <op>     := "+" | "-" | "*" | "/"
+// <number> := <digits> ["." <digits>] [<exp>]
+// <exp>    := ("e" | "E") ["+" | "-"] <digits>
+// <digits> := <digit>+
+// <digit>  := ('0' - '9')
+// ```
 ModbusScaleExpr: Scalar
